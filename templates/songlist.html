@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% load page_tags %}
+
+{% block head_title %} 歌曲列表 {% endblock %}
+
+{% block content %}
+<div class="row">
+	<div class="col-md-8 offset-md-2">
+		<span style="font-size:24px;">影片結果如下：</span>
+		<div class="my-block">
+			{% for s in songs %}
+			<div class="row" style="padding: 10px 10px 10px 10px;">
+				<div class="col-md-4">
+					<a href="/video/{{ s.songID }}">
+						<img src="http://img.youtube.com/vi/{{ s.videoURL }}/0.jpg" width="240" height="135" />
+					</a>
+				</div>
+				<div class="col-md-8">
+					<p style="font-size:20px;">
+						<a href="/video/{{ s.songID }}">
+							{{ s.singer }} - {{ s.title }}
+						</a><br>
+						<small>
+							<a href="/userinfo/{{ s.uploader }}">{{ s.uploader }}</a><br>
+							觀看次數：{{ s.viewNumber }}
+						</small>
+					</p>
+				</div>
+			</div>
+			{% endfor %}
+		</div>
+		<!--
+		{% for song in songs %}
+			{{ song.full_name|upper }}<br />
+		{% endfor %}
+		-->
+		<div class="col-md-8 offset-md-2">
+			<ul class="pagination">
+				<li class="page-item"><a class="page-link" href="?page={{ theFirstPage }}"><<</a></li>
+				{% if songs.has_previous %}
+					<li class="page-item"><a class="page-link" href="?page={{ songs.previous_page_number }}"><</a></li>
+				{% endif %}
+				{% for i in songsRange %}
+					{% if i == songs.number %}
+						<li class="page-item active"><a class="page-link">{{ i }}</a></li>
+					{% elif i|show_page:songs.number %}
+						<li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+					{% endif %}
+				{% endfor %}
+				{% if songs.has_next %}
+					<li class="page-item"><a class="page-link" href="?page={{ songs.next_page_number }}">></a></li>
+				{% endif %}
+				<li class="page-item"><a class="page-link" href="?page={{ theLastPage }}">>></a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head_title %} {{ user2.username }} {% endblock %}
+
+{% block content %}
+<script type="text/javascript">
+	function follow()
+	{
+		var FollowButton = document.getElementById("FollowButton");
+		var xmlhttp;
+		
+		if(window.XMLHttpRequest) // code for IE7+, Firefox, Chrome, Opera, Safari
+			xmlhttp = new XMLHttpRequest();
+		else // code for IE6, IE5
+			xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+		
+		xmlhttp.onreadystatechange = function()
+		{
+			if(xmlhttp.readyState==4 && xmlhttp.status==200)
+			{
+				if(xmlhttp.responseText == "notFollow") {
+					FollowButton.value = "追蹤";
+				}
+				else {
+					FollowButton.value = "已追蹤";
+				}
+			}
+		}
+
+		xmlhttp.open("GET", "/follow/{{ user2 }}/", true);
+		xmlhttp.send();
+	}
+</script>
+
+<div class="row">
+	<div class="col-md-10 offset-md-1">
+		<div class="my-block" style="padding: 1em 2em;">
+			<div class="row" style="margin: 1em 1em">
+				{% ifequal request.user user2 %}
+					<div class="dropdown">
+						<div id="profileImg" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">	
+							<div id="imgInner">變更</div>
+						</div>
+						<div class="dropdown-menu" aria-labelledby="profileImg">
+							{% if userinfo.profileImg %}
+								<a class="dropdown-item" href="#" onclick="uploadImg()">更換照片</a>
+								<a class="dropdown-item" href="#" onclick="delImg()">刪除照片</a>
+							{% else %}
+								<a class="dropdown-item" href="#" onclick="uploadImg()">新增照片</a>
+							{% endif %}
+						</div>
+					</div>
+					<form id="fileForm" method="post" action="/uploadImage/" enctype="multipart/form-data">
+						{% csrf_token %}
+						<input type="file" name="imgFile" id="imgFile" style="display: none;">				
+					</form>
+				{% else %}
+					<div id="profileImg" style="display:inline-block">		
+					</div>
+				{% endifequal %}
+				<div class="col">
+					<h3 style="display:inline-block; line-height: 100px; margin:0">{{ user2.username }}</h3>
+					{% ifnotequal request.user user2 %}
+						<input type="button" id="FollowButton" value="{{ isFollowing }}" onclick="follow()">
+					{% endifnotequal %}
+				</div>
+				
+			</div>
+
+			<script type="text/javascript">
+				profileImg_div = document.getElementById("profileImg");
+				{% if userinfo.profileImg %}
+					profileImg.style.backgroundImage = "url(/media/{{ userinfo.profileImg }})";
+				{% else %}
+					profileImg.style.backgroundImage = "url({% static 'images/皮卡丘.jpg'%})";
+				{% endif %}
+				
+				{% ifequal request.user user2 %}
+					$(document).ready(function(){
+					    $("#profileImg").hover(function(){
+					        $("#imgInner").slideDown("fast");
+					        $("#profileImg").css("cursor", "pointer");
+					    },
+					    function() {
+					    	$("#imgInner").slideUp("fast");
+					    	$("#profileImg").css("cursor", "default");
+					    });
+					});
+				{% endifequal %}
+
+				function uploadImg() {
+					{% ifequal request.user user2 %}
+						$("#imgFile").click();
+					{% endifequal %}	
+				}
+
+				function delImg() {
+					if(confirm("確定要刪除相片嗎?")) {
+						document.location.href = "/deleteImage/";
+					}	
+				}
+
+				function checkImgFile(filename, filesize) {
+					var ext_re = /\.(jpg|png)/;
+					var maxsize = 1000000;		//bytes
+					
+
+					if(!ext_re.test(filename)) {
+						window.alert("只允許上傳jpg或png影像檔");
+						return false;
+					}
+
+					if(filesize > maxsize) {
+						window.alert("影像檔大小至多1MB");
+						return false;
+					}
+
+					return true;	
+				}
+
+
+				$("#imgFile").change(function(){
+					var file = this.files[0];
+					if(!file)
+						return;
+
+					var filename = file.name;
+					var filesize = file.size;
+
+					if(!checkImgFile(filename, filesize))
+						return;
+
+					$("#fileForm").submit();
+					
+				});
+			</script>
+
+			<style type="text/css">
+				.my-nav-item {
+					display: list-item;
+    				text-align: -webkit-match-parent;
+				}
+				.my-active-link {
+					display: block;
+					padding: .5em 2em; 
+					color: #0275D8;
+					border-bottom: 3px solid #0275D8;
+				}
+				.my-active-link:hover {
+					color: #0275D8;
+					text-decoration: none;
+				}
+				.my-nav-link {
+					display: block;
+					padding: .5em 2em; 
+					color: grey;
+				}
+				.my-nav-link:hover {
+					color: #0275D8;
+					text-decoration: none;
+				}
+				.my-nav-link:visited {
+					color: grey;
+					text-decoration: none;
+				}
+			</style>
+
+			<ul class="nav">
+			  <li class="my-nav-item">
+			    <a id="videos" class="my-nav-link" href="/userinfo/{{ id }}/videos">影片</a>
+			  </li>
+			  <li class="my-nav-item">
+			    <a id="following" class="my-nav-link" href="/userinfo/{{ id }}/following">訂閱</a>
+			  </li>
+			  <li class="my-nav-item">
+			    <a id="favorite" class="my-nav-link" href="/userinfo/{{ id }}/favorite">收藏</a>
+			  </li>
+			  <li class="my-nav-item">
+			    <a id="info" class="my-nav-link" href="/userinfo/{{ id }}/info">基本資料</a>
+			  </li>
+			</ul>
+
+			<script type="text/javascript">
+				var view = {{ view }}
+				view.setAttribute("class", "my-active-link");
+			</script>
+			<div style="padding-top: 2em">
+				{% if view == "videos" %}
+					<h4>上傳的影片</h4><hr>
+					<div class="row">
+						{% for u in uploadSongs %}
+						<div class="col-md-2" style="margin: 10px 10px 10px 10px;">
+							<p style="font-size:14px;">
+								<a href="/video/{{ u.songID }}">
+								<img src="http://img.youtube.com/vi/{{ u.videoURL }}/0.jpg" width="160" height="90" /><br>
+								{{ u.singer }} - {{ u.title }}
+								</a><br>
+								<small>觀看次數：{{ u.viewNumber }}</small>
+							</p>
+						</div>
+						{% endfor %}
+					</div>
+				{% elif view == "following" %}
+					<h4>訂閱頻道</h4><hr>
+					{% for f in follows %}
+						<a href="/userinfo/{{ f.followee }}/videos"><div style="display:inline-block; width: 100px; text-align: center; margin: 0 50px 0 50px;">
+							{% if follow_profile_imgs|get_item:f.followee %}
+								<img src="/media/{{ follow_profile_imgs | get_item:f.followee }}" style="width:100px; height: 100px; border-radius: 50%">
+							{% else %}
+								<img src="{% static 'images/皮卡丘.jpg'%}" style="width:100px; height: 100px; border-radius: 50%">
+							{% endif %}
+							<strong>{{ f.followee }}</strong>
+						</div></a>
+					{% endfor %}
+				{% elif view == "favorite" %}
+					<h4>收藏內容</h4><hr>
+					<div class="row">
+						{% for f in favorites %}
+						<div class="col-md-2" style="margin: 10px 10px 10px 10px;">
+							<p style="font-size:14px;">
+								<a href="/video/{{ f.song.songID }}">
+								<img src="http://img.youtube.com/vi/{{ f.song.videoURL }}/0.jpg" width="160" height="90" /><br>
+								{{ f.song.singer }} - {{ f.song.title }}
+								</a><br>
+								<small>
+									<a href="/userinfo/{{ f.song.uploader }}/videos">{{ f.song.uploader }}</a><br>
+									觀看次數：{{ f.song.viewNumber }}
+								</small>
+							</p>
+						</div>
+						{% endfor %}
+					</div>
+				{% elif view == "info" %}
+					<h4 style="display: inline-block;">基本資料</h4>
+					{% if user.username == id %}
+						<input type='button' value='編輯' onclick='location.href="/userinfoedit/"'>
+					{% endif %}
+					<hr>				
+					<ul>
+					<li>ID: {{ userinfo.user.username }}</li>
+					<li>暱稱: {{ userinfo.nickname }}</li>
+					<li>電子郵件: {{ userinfo.user.email }}</li>
+					<li>生日: {{ userinfo.birthdate }}</li>
+					<li>性別: {{ userinfo.gender | yesno:"男,女" }}</li>
+				</ul>
+				{% endif %}
+			</div>
+			
+			
+		</div>
+	</div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "account/base.html" %}
+
+{% load i18n %}
+
+{% block head_title %}{% trans "Sign In" %}{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="my-block" style="padding: 50px 16% 50px 16%">
+            <div style="text-align: center;">
+                <p>還沒有帳號嗎? 按此<a href="{{ signup_url }}">註冊</a></p>
+            </div>
+
+            <form class="login" method="POST" action="{% url 'account_login' %}">
+                <div class="container">
+                    {% csrf_token %}
+                    <div class="form-group row">
+                        <label for="id_login" class="col-sm-3 col-form-label">帳號：</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control my-line-text" id="id_login" name="login"  maxlength="20">
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="id_password" class="col-sm-3 col-form-label">密碼：</label>
+                        <div class="col-sm-9">
+                            <input type="password" class="form-control my-line-text" id="id_password" name="password">
+                        </div>
+                    </div>
+                   <!-- {{ form.as_p }} -->
+                    {% if redirect_field_value %}
+                        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+                    {% endif %}
+                    <div class="form-group row">
+                        <div class="col-sm-6">
+                            <input id="id_remember" name="remember" type="checkbox" />
+                            <label for="id_remember">記住我</label>
+                        </div>
+                        <div class="col-sm-6" style="text-align: right">
+                            <a class="button secondaryAction" href="{% url 'account_reset_password' %}">{% trans "Forgot Password?" %}</a>
+                        </div>
+                        
+                    </div>
+                    
+                    <div>
+                        <button id="btn-submit" class="primaryAction btn-primary btn-block" type="button" onclick="login_submit()">{% trans "Sign In" %}</button>
+                    </div>                    
+                    <div style="text-align: center;">
+                        <div class="my-error-msg">{{ form.non_field_errors }}</div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    function login_submit() {
+        var form = document.getElementsByClassName("login")[0];
+        var inputs = document.getElementsByClassName("my-line-text");
+        var error_msg = document.getElementsByClassName("my-error-msg")[0]
+
+        error_msg.innerHTML = '';
+
+        for(var i = 0; i < inputs.length; i++) {
+            if(inputs[i].value == '') {
+                error_msg.innerHTML = '請填寫所有欄位!';
+                return;
+            }
+        }
+
+        var btn_submit = document.getElementById("btn-submit");
+        btn_submit.innerHTML = '請稍後...';
+        btn_submit.style.backgroundColor = '#B4D5FC';
+        btn_submit.style.borderColor = '#B4D5FC';
+        btn_submit.disabled = true;
+        form.submit();
+    }
+
+    document.onkeyup = function() {
+        var key = event.which || event.keyCode;
+        if(key == 13) {     //key Enter
+            var btn_submit = document.getElementById("btn-submit");
+            btn_submit.click()
+        }   
+    }
+</script>
+
+
+{% endblock %}

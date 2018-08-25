@@ -1,0 +1,625 @@
+{% extends 'base.html' %}
+
+{% block head_title %} {{ song.singer }} - {{ song.title }}(修改) {% endblock %}
+{% block content %}
+   <div class="row">
+            <div class="col-md-10 offset-md-1" style="text-align: center;">
+                <div id="player"></div>
+                <div id="lyricsDiv" style="margin:5px 0px 5px 0px; padding: 20px 0px 5px 0px; overflow: scroll; height: 550px;" >
+                    <form id="makeNew" method="post" action="/aftermodify/">
+                        {% csrf_token %}
+                        <div id="form-main">
+                            <div class="form-group row"><label class="col-sm-2 offset-sm-2">歌名: </label><div class="col-sm-6"><input class="my-line-text" type="text" name="title" size=50 placeholder="歌名"  value={{song.title}}></div></div>
+                            <div class="form-group row"><label class="col-sm-2 offset-sm-2">歌手: </label><div class="col-sm-6"><input class="my-line-text" type="text" name="singer" size=50 placeholder="歌手"  value={{song.singer}}></div></div>
+                            <div class="form-group row"><label class="col-sm-2 offset-sm-2">作曲: </label><div class="col-sm-6"><input class="my-line-text" type="text" name="composer" size=50 placeholder="作曲" value={{song.composer}}></div></div>
+                            <div class="form-group row"><label class="col-sm-2 offset-sm-2">作詞: </label> <div class="col-sm-6"><input class="my-line-text" type="text" name="lyricist" size=50 placeholder="作詞" value={{song.lyricist}}></div></div>
+                            <div class="form-group row"><label class="col-sm-2 offset-sm-2">YouTube連結: </label> <div class="col-sm-6"><input class="my-line-text" type="text" name="videoURL" size=50 placeholder="輸入影片完整網址" value={{song.videoURL}}></div><button type="button" class="btn-primary" onclick="changeVideo()">更換</button></div>
+                            <input type="hidden" name="SongID" value={{song.songID}}>
+                            
+                            <input type="hidden" name="IfDelete" id="IfDelete" value="0">
+                            {% for lyric in lyrics %}
+                                <div class="partLyricsDiv">
+                                   <input type='text' name='order' value='{{lyric.order}}' size='1'>
+                                   <input type='text' name='ALText' value='{{lyric.pinyin}}' size='30'>
+                                   <input type="text" name="lyricsText" value='{{lyric.text}}' size="30">
+                                   <input type="text" name="sText" value={{lyric.start_time | floatformat:1 }} size="2">
+                                   <input type="text" name="eText" value={{lyric.end_time | floatformat:1}} size="2">
+                                   <input type="hidden" name="id" value={{lyric.id}} size="5">
+                                   <span class="clickable-words" onclick="seekVideoTime()" tabindex="0">Play</span>
+                                   <span class="clickable-words" onclick="insertPartLyrics(1)" tabindex="0">間奏</span>
+                                   <span class="clickable-words" onclick="delPartLyrics()" tabindex="0">刪除</span>
+                                </div>
+                            {% endfor %}
+                        <br>歌曲說明:<br>
+                        <textarea id='SongContentI' name='SongContentI' rows='8' cols='80%' onblur='showTag(0)' placeholder='可以輸入井字號進行tag(例如: #正字 )'>{{song.content}}</textarea><br>
+                        <input type='hidden' name='tags' id='tags' value=''>
+                    </div>
+                        
+                    </form>
+                </div>
+                <div id="btnDiv" style="margin: 0px 0px 5px 0px; padding: 5px 0px 5px 0px">
+                    從第 <input type ="text" name="copyFrom" size="1"> 句到第 <input type ="text" name="copyTo" size="1"> 句歌詞複製在第 <input type ="text" name="copyBehind" size="1">句歌詞之後 <input class="btn-primary" type ="button" value ="GO!" onclick = "copyParagraph()"><br><br>
+                    即時注音: <input type ="text" id="translationB" size="25"> --> <input type ="text" id="translationA" size="25"><br><br>
+                    <button class="btn-primary" onclick="markCurrent()">循序播放</button>
+                    <button class="btn-primary" onclick="stopInterval()" id="StopIn" disabled="true">停止循序撥放</button>
+                    <button class="btn-primary" onclick="submit(1)">提交</button>
+                    <button class="btn-primary" onclick="deleteSong()">刪除歌曲</button>
+                </div>
+        </div>
+
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    {% load staticfiles %}
+        <script src="{% static '/js/jquery.cookie.js' %}" type="text/javascript"></script>
+    <script type="text/javascript">
+        var player;   
+        var tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player
+            ('player',{
+                height: '315',
+                width: '560',
+                videoId:'{{song.videoURL}}',
+                });
+        }
+
+        function changeVideo(){
+            var url=document.getElementsByName("videoURL")[0].value;
+            console.log(url)
+            url=getVidFromUrl(url);
+            if(url==false){
+                return;
+            }
+            player.loadVideoById({
+                'videoId': url,
+               'startSeconds': 0,
+               'suggestedQuality': 'large'});
+            document.getElementsByName("videoURL")[0].value=url;
+        }
+
+        function getVidFromUrl(url) {
+            var vid;
+            if(url.match(/youtube/g)){
+                vid = url.split("/")[3];
+                if(vid.match("v=")) {
+                    vid = vid.split("v=")[1];
+                    if(vid.match("&")) {
+                        vid = vid.split("&")[0];
+                        return vid;
+                    }
+                    else {
+                        return vid;
+                    }
+                }
+                else {
+                    return vid;
+                }
+            }
+            else if(url.match(/youtu.be/g)){
+                vid = url.split("youtu.be/")[1];
+                return vid;
+            }
+            else{
+                alert("請輸入正確YouTube的網址");
+                return false;
+                }
+        }
+
+        function showTag(submit){
+            var tmp={{song.content}};
+            console.log(tmp)
+            var songcontent = document.getElementById("SongContentI");
+            var content=songcontent.value;
+            pattern = /\s#[a-zA-Z0-9\u4e00-\u9fa5]*\s/g;
+            var res=content.match(pattern);
+            if(res){
+                for(var i=0; i<res.length;i++){
+                    var tag='<span class="clickable-words" name="tag">'+res[i]+'</span>';
+                    content = content.replace(res[i], tag);
+                }
+            }
+            if(submit == 1){
+                if(document.getElementById("SongContentP"))
+                document.getElementById("SongContentP").remove();
+            }
+
+            if(content == '')
+                content='沒有歌曲資訊，點兩下進行新增';
+            content = content.replace(/\n/g,"<br />");
+            var change = document.createElement("p");
+            change.id = "SongContentP";
+            change.name = "SongContentP";
+            change.innerHTML = content;
+            
+            songcontent.parentElement.appendChild(change);
+            document.getElementById("SongContentI").setAttribute("style", "display:none;");
+            document.getElementById("SongContentP").setAttribute("ondblclick", " modifyTag()");
+        }
+
+        function modifyTag(){
+            console.log('in')
+            document.getElementById("SongContentI").setAttribute("style", "display:show;");
+            document.getElementById("SongContentP").remove();
+        }
+
+        function getVideoTimeFromSpace(time, dir) {     //dir:direction-0/up; 1/down
+            var actElement = document.activeElement;
+            if(!actElement){
+                return;
+            }
+            var nextElement = actElement;
+            var list=document.getElementsByClassName("partLyricsDiv");
+
+            if(time==1){
+                actElement.value = player.getCurrentTime().toFixed(1);
+            }
+            
+            if(dir==1){
+                if(actElement.parentElement === list[list.length-1]){
+                    if(actElement.name === "sText") {
+                        nextElement = actElement.nextSibling.nextSibling;
+                    }
+                    else{
+                        alert('結束囉~~');
+                    }
+                }
+                else{
+                    nextElement = actElement.parentElement.nextElementSibling.children[actElement.name];
+                }
+            }
+            else{
+                if(actElement.parentElement != list[0]){
+                    nextElement = actElement.parentElement.previousSibling.previousSibling.children[actElement.name];
+                }
+            }
+            nextElement.focus();
+            if(nextElement != actElement){
+                ScrollAdjust();
+            }
+        }
+
+        function ScrollAdjust(){
+            window.lyricsDiv.scrollBy(0, 10);
+        }
+
+        document.onkeyup = function() {
+            var key = event.which || event.keyCode;
+            var active = document.activeElement;
+            //console.log(active)
+            if(active.name =='sText' || active.name =='eText'){
+                if(key == 32 || key == 229) {               //key space
+                    getVideoTimeFromSpace(1,1);
+                }
+                if(key == 40) {                             //down
+                    getVideoTimeFromSpace(0,1)
+                }
+                if(key == 38) {                             //up
+                    getVideoTimeFromSpace(0,0)
+                }
+            }
+        }
+
+        document.addEventListener("click", clickListen);
+
+        function clickListen() {
+            if(document.activeElement.name=='sText'){
+                var start=document.activeElement.value;
+                start=parseFloat(start);
+                console.log(start)
+                if(start!='' && !isNaN(start)){
+                    player.seekTo(start);
+                }
+            }
+        }
+
+        function insertPartLyrics(iftmp) {
+            var nextDiv;
+            var parent = document.activeElement.parentElement.parentElement;
+            var newDiv = document.createElement("div");
+            var actElement = document.activeElement;
+            var content='';
+            if(iftmp==1){
+                var start = player.getCurrentTime().toFixed(1);
+                if(actElement.parentElement.children["eText"].value!='' && actElement.parentElement.children["eText"].value!= 0.0){
+                    var start=actElement.parentElement.children["eText"].value;
+                }
+                content += eachLyricDetail(0, '', '(間奏~)', start, '', 1, 0);
+            }
+            else{
+                    content += eachLyricDetail(0, '', '', 0.0, 0.0, 0, 0);
+            }
+
+            newDiv.setAttribute("class", "partLyricsDiv");
+            newDiv.innerHTML = content;
+
+            nextDiv = document.activeElement.parentElement.nextElementSibling;
+            if(nextDiv) {
+                parent.insertBefore(newDiv, nextDiv);
+            }
+            else {
+                parent.appendChild(newDiv);
+            }
+            ReOrder();
+        }
+
+        function delPartLyrics() {
+            var partLyricsDiv = document.activeElement.parentElement;
+            var parent = partLyricsDiv.parentElement;
+            parent.removeChild(partLyricsDiv);
+            ReOrder();
+        }
+
+        function dealTimeArea(){
+            var sTexts = document.getElementsByName("sText");
+            var eTexts = document.getElementsByName("eText");
+            for(var i = 0; i < sTexts.length; i++) {
+                    if(!sTexts[i].value || isNaN(sTexts[i].value)) {
+                        window.alert("請正確輸入所有開始時間欄位");
+                        return false; 
+                    }
+                }
+            if(!eTexts[eTexts.length-1].value || isNaN(eTexts[eTexts.length-1].value) || eTexts[eTexts.length-1].value==' ') {
+                window.alert('請正確輸入最後一個結束時間');
+                return false; 
+            }
+            for(var i = 0; i < eTexts.length-1; i++) {
+                if(!eTexts[i].value || eTexts[i].value===' ' || eTexts[i].value==0) {
+                    time=parseFloat(sTexts[i+1].value)- 0.3;
+                    time=time.toFixed(1);
+                    eTexts[i].value = time;
+                }
+                if(isNaN(eTexts[i].value)) {
+                    window.alert('請正確輸入時間');
+                    return false; 
+                }
+                if(parseFloat(eTexts[i].value)<parseFloat(sTexts[i].value)){
+                    var falseSen=i+1;
+                    window.alert('請正確輸入時間順序第'+falseSen+'行正確開始及結束時間('+eTexts[i].value+'<'+sTexts[i].value+')');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function stopInterval(){
+            window.clearInterval(repeat);
+            clear();
+            document.getElementById("StopIn").disabled = true;
+        }
+
+        function markCurrent(){
+            clear();
+            window.clearInterval(repeat);
+            document.getElementById("StopIn").disabled = false;
+            var list=document.getElementsByClassName("partLyricsDiv");
+
+            if(dealTimeArea()==false){
+                    return;
+                }
+
+            var current_order=0;
+            player.seekTo(1);
+            var OldSec=1;
+            var first=1;
+            var start=document.getElementsByName('sText')[0].value;
+            var end=document.getElementsByName('eText')[0].value;
+        
+            repeat = setInterval(function(){ 
+                var sec = Math.round(player.getCurrentTime()*10)/10;
+                var delta=sec - OldSec;
+                if(delta<0 || delta>0.2){
+                    clear();
+                    console.log(delta)
+                    for(var i=0;i<list.length;i++){
+                        if(sec>document.getElementsByName('sText')[i].value && sec<document.getElementsByName('eText')[i].value){
+                            current_order=i;
+                            document.getElementsByName('lyricsText')[current_order].style.color="red";
+                            break;
+                        }}
+                }
+                else{
+                    if(sec>end){
+                        console.log('IN')
+                        document.getElementsByName('lyricsText')[current_order].style.color="black";
+                        current_order++;
+                        first=1;
+                        
+                        if(current_order==list.length){
+                            window.clearInterval(repeat);
+                            console.log('stop')
+                            }
+                        else{
+                            start=document.getElementsByName('sText')[current_order].value;
+                            end=document.getElementsByName('eText')[current_order].value;
+                            }
+                        }
+                    else if(sec>start && first==1){
+                        document.getElementsByName('lyricsText')[current_order].style.color="red";
+                        first=0;
+                        }
+                }
+                OldSec=sec;
+                },100);
+                
+        }
+
+        var repeat;
+        function seekVideoTime() {
+            clear();
+            window.clearInterval(repeat);
+            var text = document.activeElement.parentElement.children[2];
+            var start = document.activeElement.parentElement.children[3].value;
+            var end = document.activeElement.parentElement.children[4].value;
+            
+            start = parseFloat(start);
+            end = parseFloat(end);
+            if(isNaN(start) || isNaN(end)){
+                alert('請輸入正確的時間資訊')
+                return;
+            }
+            if(end>start) {
+                text.style.color="green";
+                player.seekTo(start);
+                document.getElementById("StopIn").disabled = false;
+                repeat = setInterval(function(){
+                    console.log('1')
+                    var sec = Math.round(player.getCurrentTime()*10)/10;
+                    if(sec>end){
+                        player.seekTo(start);
+                    }
+                    },100);
+                }
+            else{
+                alert('請輸入正確的時間資訊')
+                return;
+            }
+            console.log('2')
+        }
+
+        function clear(){
+            var list=document.getElementsByClassName("partLyricsDiv");
+            for(var i = 0; i < list.length; i++) {
+                    document.getElementsByName('lyricsText')[i].style.color="black";}
+        }
+
+
+       function copyParagraph(){
+            if(document.getElementsByName('order')[0].value==1){
+                ReOrder();
+            }
+            var copyFrom=document.getElementsByName('copyFrom')[0].value-1;
+            var copyTo=document.getElementsByName('copyTo')[0].value-1;
+            var copyBehind=document.getElementsByName('copyBehind')[0].value-1;
+
+            document.getElementsByName('copyFrom')[0].value='';
+            document.getElementsByName('copyTo')[0].value='';
+            document.getElementsByName('copyBehind')[0].value='';
+            insertLyrics(copyFrom,copyTo,copyBehind)
+        }
+
+        function insertNoDetailsLyric(start,end,next,overlay,behind){
+            var overlayH;
+            for(var i=start;i<=end;i++){
+                var content='';
+                var newDiv = document.createElement("div");
+                if (overlay==1 && i>behind){
+                    overlayH=i*2-start;
+                }
+                else{
+                    overlayH=i;
+                }
+                content += eachLyricDetail(document.getElementsByName('order')[overlayH].value, document.getElementsByName('ALText')[overlayH].value, document.getElementsByName('lyricsText')[overlayH].value, 0.0, 0.0, 1, 0, 0);
+
+                newDiv.setAttribute("class", "partLyricsDiv");
+                newDiv.innerHTML = content;
+
+                var parent=document.getElementById('lyricsDiv').children[0].children[1];
+
+                parent.insertBefore(newDiv, parent.children[next]);
+                next++;
+            }
+            ReOrder();
+        }
+
+        function insertLyrics(start,end,behind) {
+            var overlay=0;
+            if(behind>=start && behind<end){
+                overlay=1;
+            }
+            var next=behind+8;
+
+            var ceilingS=document.getElementsByName('sText')[behind].value;
+            var ceilingE=document.getElementsByName('eText')[behind].value;
+
+            var deltaE;
+            var deltaS;
+            var delta;
+            var ifTime;
+            var overlayH;
+            
+            for(var i=start;i<=end;i++){
+                if(ceilingE=='' || ceilingS==''){
+                    insertNoDetailsLyric(i,end,next,overlay,behind);
+                    return;
+                }
+
+                if (overlay==1 && i>behind){
+                    overlayH=i*2-start;
+                }
+                else{
+                    overlayH=i;
+                }
+
+                var Start=document.getElementsByName('sText')[overlayH].value;
+
+                deltaS='';
+                ifTime=0;
+                if(parseFloat(ceilingE)>0.3){
+                    if(i==start){
+                        deltaS=parseFloat(ceilingE)+0.3;
+                    }
+                    else if(i>start){
+                        var PreStart=document.getElementsByName('sText')[overlayH-1].value;
+                        if(!isNaN(PreStart)){
+                            deltaS=parseFloat(Start)-parseFloat(PreStart);
+                            deltaS=parseFloat(ceilingS)+deltaS;}
+                    } 
+                }
+
+                if(deltaS>0){
+                    ifTime=1;
+                    deltaS=deltaS.toFixed(1);
+                }
+                else{
+                    insertNoDetailsLyric(i,end,next,overlay,behind);
+                    return;
+                }
+                
+                var content='';
+                content += eachLyricDetail(document.getElementsByName('order')[overlayH].value, document.getElementsByName('ALText')[overlayH].value, document.getElementsByName('lyricsText')[overlayH].value, deltaS, '', ifTime, 0);
+
+                var newDiv = document.createElement("div");
+                newDiv.setAttribute("class", "partLyricsDiv");
+                newDiv.innerHTML = content;
+
+                var parent=document.getElementById('lyricsDiv').children[0].children[1];
+
+                parent.insertBefore(newDiv, parent.children[next]);
+                next++;
+                
+                ceilingS=deltaS;
+            }
+            ReOrder();
+        }
+        
+        function ReOrder(){
+            var ORs = document.getElementsByName("order");
+            for(var i=0; i<ORs.length;i++){
+                ORs[i].value=i+1;
+            }
+        }
+
+        function eachLyricDetail(order, AL, lyric, start, end, withTime, insert){
+            var content='';
+            if(insert==1){
+                content += '<div class="partLyricsDiv">';
+            }
+            content += '<input type="text" name="order" value="'+order+'" size="1">'+            
+                        '<input type="text" name="ALText" value="' + AL + '" size="30" >'+
+                        '<input type="text" name="lyricsText" value="' + lyric + '" size="30">';
+            if(withTime==1){
+                content +='<input type="text" name="sText" size="2" placeholder="開始" value="' + start + '">' +
+                          '<input type="text" name="eText" size="2" placeholder="結束" value="' + end + '">' ;
+            }
+            else{
+                content +='<input type="text" name="sText" size="2" placeholder="開始">' +
+                          '<input type="text" name="eText" size="2" placeholder="結束">' ;
+            }
+            /*                      
+            content += '<span class="clickable-words" onclick="insertPartLyrics(1,0)" tabindex="0">插入</span>'+*/
+            content+='<input type="hidden" name="id" value="-1" size="5">'+
+                     '<span class="clickable-words" onclick="seekVideoTime()" tabindex="0">Play</span>'+
+                     '<span class="clickable-words" onclick="insertPartLyrics(1)" tabindex="0">間奏</span>'+
+                     '<span class="clickable-words" onclick="delPartLyrics()" tabindex="0">刪除</span>';
+
+            if(insert==1){
+                content += '</div>';
+            }
+            return content;
+        }
+
+        $('#translationB').on('keyup', function() {
+            Translate($(this).val());
+            console.log('.on(keyup) = ' + $(this).val());
+          });
+
+        function Translate(val){
+            console.log(val);
+            var result = {{song.pinyinType}};
+            result+='$';
+            result+=val;
+            result = JSON.stringify(result);
+            
+            $.ajax({
+                type: 'POST',
+                url: "/autoAL/",
+                contentType: 'application/json; charset=utf-8',
+                data: result,
+                success: function(msg)
+                {
+                    console.log(msg)
+                    msg = msg.split("$")[1];
+                    document.getElementById('translationA').value = msg;
+                },
+                dataType: 'text'
+            });
+        }
+
+        function arrange(){
+            var title = document.getElementsByName("title")[0].value;
+            if(title) {
+                if(dealTimeArea()==false){
+                    return false;
+                }
+                else{
+                    return true;
+                }
+            }
+            else{
+                window.alert('請輸入歌名');
+                return false;
+            }
+
+        }
+
+        function deleteSong(){
+            document.getElementById('IfDelete').value=1;
+            submit(0);
+        }
+
+        function submit(check){
+            if(check==0){
+                var form = document.getElementById("makeNew");
+                form.submit();
+            }
+            else{
+                ReOrder();
+                if(arrange()==false){
+                    return;
+                }
+                else{
+                    showTag(1);
+                    var tag = document.getElementsByName("tag");
+                    var tagList = '0';
+                    if(tag){
+                        tagList = '1';
+                        for(var i=0;i<tag.length;i++){
+                            tagList+=tag[i].innerHTML;
+                        }}
+                    tagList = tagList.replace(/\s/g,'');
+                    document.getElementById("tags").value = tagList;
+                    var form = document.getElementById("makeNew");
+                    console.log(form)
+                    form.submit();
+                }
+            }
+           
+        }
+
+    function csrfSafeMethod(method) {
+            return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+            }
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", $.cookie('csrftoken'));
+                }
+            }
+        });
+
+
+    </script>
+{% endblock %}
